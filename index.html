@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transcript Generator</title>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Inter", system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+            color: #0f172a;
+        }
+
+        header {
+            padding: 24px 16px 8px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.75rem;
+            letter-spacing: -0.02em;
+        }
+
+        p {
+            margin: 8px 0 0;
+            color: #475569;
+        }
+
+        main {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 0 16px 32px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+            padding: 18px;
+            margin-top: 16px;
+            border: 1px solid #e2e8f0;
+        }
+
+        form {
+            display: grid;
+            gap: 12px;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #0f172a;
+        }
+
+        .input-row {
+            display: grid;
+            gap: 10px;
+        }
+
+        input[type="url"] {
+            width: 100%;
+            padding: 14px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input[type="url"]:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+        }
+
+        button {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 10px 30px rgba(79, 70, 229, 0.25);
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 34px rgba(79, 70, 229, 0.35);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 8px 26px rgba(79, 70, 229, 0.25);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 320px;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid #cbd5e1;
+            resize: vertical;
+            font-family: "Inter", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            background: #f8fafc;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: #334155;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 3px solid #cbd5e1;
+            border-top-color: #6366f1;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .card {
+                padding: 14px;
+                border-radius: 14px;
+            }
+
+            textarea {
+                min-height: 240px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>YouTube Transcript Generator</h1>
+        <p>Paste a YouTube URL to fetch an accessible, mobile-friendly transcript.</p>
+    </header>
+    <main>
+        <section class="card">
+            <form id="transcript-form">
+                <label for="url">YouTube URL</label>
+                <div class="input-row">
+                    <input type="url" id="url" name="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=..." required />
+                    <button id="generate" type="submit">Generate Transcript</button>
+                </div>
+                <div id="status" class="status" aria-live="polite"></div>
+                <label for="transcript">Transcript</label>
+                <textarea id="transcript" name="transcript" placeholder="Transcript will appear here..." readonly></textarea>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById('transcript-form');
+        const status = document.getElementById('status');
+        const transcriptField = document.getElementById('transcript');
+        const generateButton = document.getElementById('generate');
+
+        function setStatus(message, isLoading = false) {
+            status.innerHTML = '';
+            if (isLoading) {
+                const spinner = document.createElement('span');
+                spinner.className = 'spinner';
+                status.appendChild(spinner);
+            }
+            const text = document.createElement('span');
+            text.textContent = message;
+            status.appendChild(text);
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const url = document.getElementById('url').value.trim();
+            if (!url) {
+                setStatus('Please paste a valid YouTube URL.');
+                return;
+            }
+
+            generateButton.disabled = true;
+            transcriptField.value = '';
+            setStatus('Fetching transcript...', true);
+
+            try {
+                const response = await fetch('/api/transcript', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!response.ok) {
+                    const details = await response.json().catch(() => ({}));
+                    const reason = details?.detail || 'Unable to fetch transcript.';
+                    throw new Error(reason);
+                }
+
+                const data = await response.json();
+                transcriptField.value = data.transcript || '';
+                setStatus('Transcript ready!');
+            } catch (error) {
+                console.error(error);
+                setStatus(error.message || 'An error occurred while generating the transcript.');
+            } finally {
+                generateButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
